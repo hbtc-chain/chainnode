@@ -1,0 +1,3 @@
+fullnode:
+  trx:
+    rpc_url: grpc.shasta.trongrid.io:50051

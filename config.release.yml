@@ -1,0 +1,17 @@
+server:
+  port: 8888
+  timeout: 120s
+  sleep: 10s
+
+network: testnet
+
+fullnode:
+  eth:
+    rpc_url: 
+    confirmations: 4
+    
+tokens:
+  -
+    type: ETH
+    address: 
+    symbol: BHETH

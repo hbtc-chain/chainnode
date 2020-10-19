@@ -1,0 +1,301 @@
+syntax = "proto3";
+package proto;
+
+service Chainnode {
+    rpc BroadcastTransaction(BroadcastTransactionRequest) returns(BroadcastTransactionReply);
+    rpc ConvertAddress(ConvertAddressRequest) returns(ConvertAddressReply);
+    rpc SupportChain(SupportChainRequest) returns(SupportChainReply);
+    rpc ValidAddress(ValidAddressRequest) returns(ValidAddressReply);
+
+    rpc CreateAccountSignedTransaction(CreateAccountSignedTransactionRequest) returns(CreateSignedTransactionReply);
+    rpc CreateAccountTransaction(CreateAccountTransactionRequest) returns(CreateAccountTransactionReply);
+    rpc CreateUtxoSignedTransaction(CreateUtxoSignedTransactionRequest) returns(CreateSignedTransactionReply);
+    rpc CreateUtxoTransaction(CreateUtxoTransactionRequest) returns(CreateUtxoTransactionReply);
+
+    rpc QueryUtxo(QueryUtxoRequest) returns(QueryUtxoReply);      //check Utxo  has alreay spent or not?
+    rpc QueryUtxoInsFromData(QueryUtxoInsFromDataRequest) returns(QueryUtxoInsReply);
+
+    rpc QueryAccountTransaction(QueryTransactionRequest) returns(QueryAccountTransactionReply);
+    rpc QueryUtxoTransaction(QueryTransactionRequest) returns(QueryUtxoTransactionReply);
+
+    rpc QueryAccountTransactionFromData(QueryTransactionFromDataRequest) returns(QueryAccountTransactionReply);
+    rpc QueryUtxoTransactionFromData(QueryTransactionFromDataRequest) returns(QueryUtxoTransactionReply);
+
+    rpc QueryAccountTransactionFromSignedData(QueryTransactionFromSignedDataRequest) returns(QueryAccountTransactionReply);
+    rpc QueryUtxoTransactionFromSignedData(QueryTransactionFromSignedDataRequest) returns(QueryUtxoTransactionReply);
+
+    rpc QueryBalance(QueryBalanceRequest) returns(QueryBalanceReply);
+    rpc QueryGasPrice(QueryGasPriceRequest) returns(QueryGasPriceReply);
+    rpc QueryNonce(QueryNonceRequest) returns(QueryNonceReply);
+
+    rpc VerifyAccountSignedTransaction(VerifySignedTransactionRequest) returns(VerifySignedTransactionReply);
+    rpc VerifyUtxoSignedTransaction(VerifySignedTransactionRequest) returns(VerifySignedTransactionReply);
+}
+
+enum ReturnCode{
+    SUCCESS = 0;
+    ERROR = 1;
+}
+
+message SupportChainRequest{
+    string chain=1;
+}
+
+message SupportChainReply{
+    ReturnCode code=1;
+    string msg=2;
+    bool support=3;
+}
+
+message ConvertAddressRequest{
+    string chain=1;
+    bytes public_key=2;
+}
+
+message ConvertAddressReply{
+    ReturnCode code=1;
+    string msg=2;
+    string address=3;
+}
+
+message ValidAddressRequest{
+    string symbol=1;
+    string chain=2;
+    string address=3;
+}
+
+message ValidAddressReply{
+    ReturnCode code=1;
+    string msg=2;
+    bool valid=3;
+    bool can_withdrawal=4;
+    string canonical_address=5;
+}
+
+message QueryBalanceRequest{
+    string symbol=1;
+    string chain=2;
+    string address=3;
+    uint64 block_height=4;
+    string contract_address=5;
+}
+
+message QueryBalanceReply{
+    ReturnCode code=1;
+    string msg=2;
+    string balance=3;
+}
+
+message QueryUtxoRequest{
+    string symbol=1[deprecated=true];
+    string chain=2;
+    Vin vin=3;
+}
+
+message QueryUtxoReply{
+    ReturnCode code=1;
+    string msg=2;
+    bool unspent=3;
+}
+
+message QueryNonceRequest{
+    string chain=1;
+    string address=2;
+}
+
+message QueryNonceReply{
+    ReturnCode code=1;
+    string msg=2;
+    uint64 nonce=3;
+}
+
+message QueryGasPriceRequest{
+    string chain=1;
+}
+
+message QueryGasPriceReply{
+    ReturnCode code=1;
+    string msg=2;
+    string gas_price=3;
+}
+
+message QueryTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    string tx_hash=3;
+    bool   async_mode=4[deprecated=true];
+}
+
+enum TxStatus{
+    NotFound = 0;
+    Pending = 1;
+    Failed = 2;
+    Success = 3;
+    ContractExecuteFailed = 4;
+    Other = 5;
+}
+
+
+message QueryUtxoTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    string tx_hash=3;
+    TxStatus tx_status=4;
+    repeated Vin  vins=5;
+    repeated Vout vouts=6;
+    repeated bytes sign_hashes=7;
+    string cost_fee=8;
+    uint64 block_height=9;
+    uint64 block_time=10;
+}
+
+message QueryAccountTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    string tx_hash=3;
+    TxStatus tx_status=4;
+    string from=5;
+    string to=6;
+    string amount=7;
+    string memo=8;
+    uint64 nonce=9;
+    string gas_limit=10;
+    string gas_price=11;
+    string cost_fee=12;
+    uint64 block_height=13;
+    uint64 block_time=14;
+    bytes sign_hash=15;
+    string contract_address=16;
+}
+
+message QueryTransactionFromSignedDataRequest{
+    string symbol=1;
+    string chain=2;
+    bytes signed_tx_data=3;
+    int64 height=4;
+    repeated Vin vins=5;
+}
+
+message QueryTransactionFromDataRequest{
+    string symbol=1;
+    string chain =2;
+    bytes raw_data=3;
+    int64 height=4;
+    repeated Vin vins=5;
+}
+
+message Vin{
+    string hash=1;
+    uint32 index=2;
+    int64  amount=3;
+    string address=4;
+}
+
+message Vout{
+    string address=1;
+    int64 amount=2;
+    uint32 index=3;
+}
+
+
+message CreateUtxoTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    repeated Vin vins=3;
+    repeated Vout vouts=4;
+    string fee=5;
+}
+
+message CreateUtxoTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    bytes tx_data=3;
+    repeated bytes sign_hashes=4;
+}
+
+message CreateAccountTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    string from=3;
+    string to=4;
+    string amount=5;
+    string memo=6;
+    string gas_limit=7;
+    string gas_price=8;
+    uint64 nonce=9;
+    string contract_address=10;
+}
+
+message CreateAccountTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    bytes tx_data=3;
+    bytes sign_hash=4;
+}
+
+message CreateAccountSignedTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    bytes tx_data=3;
+    bytes signature=4;
+    bytes public_key=5;
+}
+
+message CreateUtxoSignedTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    bytes tx_data=3;
+    repeated bytes signatures=4;
+    repeated bytes public_keys=5;
+}
+
+message CreateSignedTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    bytes signed_tx_data=3;
+    bytes hash=4;
+}
+
+message BroadcastTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    bytes signed_tx_data=3;
+}
+
+message BroadcastTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    string tx_hash=3;
+}
+
+message VerifySignedTransactionRequest{
+    string symbol=1;
+    string chain=2;
+    repeated string addresses=3[deprecated=true];
+    bytes signed_tx_data=4;
+
+    // for eth
+    string sender = 5;
+    int64 height = 6;  // optional, default to latest
+
+    // for btc
+    repeated Vin vins=7;
+}
+
+message VerifySignedTransactionReply{
+    ReturnCode code=1;
+    string msg=2;
+    bool verified=3;
+}
+
+message QueryUtxoInsFromDataRequest{
+    string symbol=1;
+    string chain=2;
+    bytes  data=3;
+}
+
+message QueryUtxoInsReply{
+    ReturnCode code=1;
+    string msg=2;
+    repeated Vin vins=3;
+}

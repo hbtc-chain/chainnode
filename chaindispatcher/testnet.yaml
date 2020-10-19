@@ -1,0 +1,35 @@
+server:
+  timeout: 100s
+  sleep: 10s
+
+network: testnet
+
+fullnode:
+  btc:
+    rpc_url: 
+    rpc_user:
+    rpc_pass:
+    confirmations: 1
+  eth:
+    rpc_url:
+    confirmations: 4
+
+  trx:
+    rpc_url: grpc.shasta.trongrid.io:50051
+    confirmations: 20
+    
+tokens:
+  -
+    type: ETH
+    address: 
+    symbol: BHETH
+  - 
+    type: BTC
+    address: 
+    symbol: BHBTC
+  -
+    type: TRX
+    address:
+    symbol: BHTRX
+
+chains: [btc, eth, trx]

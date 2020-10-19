@@ -1,0 +1,9 @@
+fullnode:
+  btc:
+    rpc_url: 
+    rpc_user:
+    rpc_pass:
+    confirmations: 1
+  eth:
+    rpc_url: 
+    confirmations: 4

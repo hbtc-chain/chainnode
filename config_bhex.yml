@@ -1,0 +1,20 @@
+server:
+  port: 8888
+  timeout: 120s
+  sleep: 10s
+
+network: testnet
+
+fullnode:
+  btc:
+    rpc_url: 
+    rpc_user:
+    rpc_pass:
+  eth:
+    rpc_url:
+    rpc_user:
+    rpc_pass:
+    confirmations: 4
+
+chains: [btc, eth]
+
