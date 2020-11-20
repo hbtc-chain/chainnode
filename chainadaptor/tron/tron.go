@@ -13,6 +13,11 @@ import (
 
 	"go.uber.org/atomic"
 
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/hbtc-chain/chainnode/cache"
 	"github.com/hbtc-chain/chainnode/chainadaptor"
 	"github.com/hbtc-chain/chainnode/chainadaptor/fallback"
@@ -21,11 +26,6 @@ import (
 	"github.com/hbtc-chain/gotron-sdk/pkg/address"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/api"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/core"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 )
 
 const TrxDecimals = 6
@@ -266,10 +266,10 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 	tx, err := grpcClient.GetTransactionByID(req.TxHash)
 	if err != nil {
 		return &proto.QueryAccountTransactionReply{
-			Code:     proto.ReturnCode_ERROR,
+			Code:     proto.ReturnCode_SUCCESS,
 			Msg:      err.Error(),
 			TxStatus: proto.TxStatus_NotFound,
-		}, err
+		}, nil
 	}
 
 	r := tx.RawData.Contract
@@ -279,7 +279,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 			Code:     proto.ReturnCode_ERROR,
 			Msg:      err.Error(),
 			TxStatus: proto.TxStatus_Other,
-		}, err
+		}, nil
 	}
 
 	txi, err := grpcClient.GetTransactionInfoByID(req.TxHash)
@@ -288,7 +288,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 			Code:     proto.ReturnCode_ERROR,
 			Msg:      err.Error(),
 			TxStatus: proto.TxStatus_NotFound,
-		}, err
+		}, nil
 	}
 
 	var depositList []depositInfo
@@ -299,7 +299,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 			return &proto.QueryAccountTransactionReply{
 				Code: proto.ReturnCode_ERROR,
 				Msg:  err.Error(),
-			}, err
+			}, nil
 		}
 
 	case core.Transaction_Contract_TransferAssetContract:
@@ -308,7 +308,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 			return &proto.QueryAccountTransactionReply{
 				Code: proto.ReturnCode_ERROR,
 				Msg:  err.Error(),
-			}, err
+			}, nil
 		}
 
 	case core.Transaction_Contract_TriggerSmartContract:
@@ -317,7 +317,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 			return &proto.QueryAccountTransactionReply{
 				Code: proto.ReturnCode_ERROR,
 				Msg:  err.Error(),
-			}, err
+			}, nil
 		}
 	default:
 		err = fmt.Errorf("QueryTransaction, unsupport contract type %v, tx hash %v ", r[0].Type, req.TxHash)
@@ -325,7 +325,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 		return &proto.QueryAccountTransactionReply{
 			Code: proto.ReturnCode_ERROR,
 			Msg:  err.Error(),
-		}, err
+		}, nil
 	}
 
 	//Note: decodeTriggerSmartContract supports multi TRC20 transfer in single hash,  but assume we will initiate single TRC20 transfer
