@@ -14,7 +14,7 @@ import (
 )
 
 func TestGetTxHash(t *testing.T) {
-	client := ethChainAdaptor.(*ChainAdaptor).client
+	client := ethChainAdaptor.(*ChainAdaptor).getClient()
 	txHash := common.HexToHash("0x33ac277a7e48a77fc6762660c5fa1372ca3395b9a59370ebbb0e7419ba4441bc")
 	tx, pending, err := client.TransactionByHash(context.TODO(), txHash)
 	assert.Nil(t, err)
@@ -24,7 +24,7 @@ func TestGetTxHash(t *testing.T) {
 }
 
 func TestGetBlockByNumber(t *testing.T) {
-	client := ethChainAdaptor.(*ChainAdaptor).client
+	client := ethChainAdaptor.(*ChainAdaptor).getClient()
 
 	num := big.NewInt(6552057)
 	expectedBlockHash := common.HexToHash("0x30442f7e23d048f2e84e9b001a6210e03e7be55a13efe6713f46dfaee138c282")

@@ -16,7 +16,7 @@ func TestGetTxHash(t *testing.T) {
 	txHash, err := chainhash.NewHashFromStr(hash)
 	assert.Nil(t, err)
 
-	tx, err := btcChainAdaptor.client.GetRawTransactionVerbose(txHash)
+	tx, err := btcChainAdaptor.getClient().GetRawTransactionVerbose(txHash)
 	assert.Nil(t, err)
 	assert.Equal(t, hash, tx.Txid)
 }

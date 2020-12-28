@@ -92,7 +92,7 @@ func TestConvertAddress(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
 	genPub2Addr()
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 
 	var req proto.ConvertAddressRequest
 	req.Chain = ChainName
@@ -166,7 +166,7 @@ var illegalAddrs = []string{
 func TestValidAddress(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	genPub2Addr()
 
 	var req proto.ValidAddressRequest
@@ -876,7 +876,7 @@ func TestCreateTransactionAmountMismatch(t *testing.T) {
 func TestCreateAndSignTransactionOneTxinUnCompressed(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	client.compressed = false
 
 	expectedHash, _ := hex.DecodeString("4bc328ba8fcf517d612b0ba01e0cd005e5829a16b295e33150dc2e2afbbb56e6")
@@ -957,7 +957,7 @@ func btcecSigToBHSigBytes(sigBytes []byte) ([]byte, error) {
 func TestCreateAndSignTransactionMultiTxinUnCompressed(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	client.compressed = false
 
 	expectedHash0, _ := hex.DecodeString("08ebbd73dcefec70b66bdc185c4f7a54a0ced720ad455c259d427e94c86100ce")
@@ -1041,7 +1041,7 @@ func TestCreateAndSignTransactionMultiTxinUnCompressed(t *testing.T) {
 func TestCreateAndSignTransactionOneTxInUnCompressed(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	client.compressed = false // mhoGjKn5xegDXL6u5LFSUQdm5ozdM6xao9 is uncomprssed address
 
 	expectedHash0, _ := hex.DecodeString("cf9b979b88f7971205c6be656e09f416e3d6f76d3579e0481b870ee858d9c4bf")
@@ -1706,7 +1706,7 @@ func TestCreateSignedTransactionForCompressedAddressAndTx(t *testing.T) {
 func TestCreateAndSignedTransactioFromDifferentAddressInCompress(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	client.compressed = true
 	expectedTxData := "010000000282f957d1598291a946d34a114e5391b166cfbf8228325a12fe703cf8db18343f0000000000ffffffff82f957d1598291a946d34a114e5391b166cfbf8228325a12fe703cf8db18343f0100000000ffffffff02b4270100000000001976a91419064bda7eb5049f922a4bca4c24808c6aea948d88acf40100000000000017a91410080578e54a2a66efcb55e69b073100d0da47b98700000000"
 	expectedHash1 := "890c6bb02e75bebf6ae1f92cb3138bb11ec7dd3035938d1224384ad861c52041"
@@ -1861,7 +1861,7 @@ func TestBroadcastTransaction3(t *testing.T) {
 func TestCreateAndSingedTransaction2(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	expectedRawDataStr := "010000000145138613310ded962b679f31268faaf73ca2cdf1e6e44c61d16cd21d97be71ed0000000000ffffffff02a0bb0d00000000001976a914eed9944e930bf91b0d0636be81430ec141eae51988acd07e0100000000001976a914ac80df1fa9dd5740c6f17e03b0ca6ce8d871c9a088ac00000000"
 	expectedSignHashStr := "1e589854304006c8669ca7fd9fbef23594eb33484886a4423ca8dc62908fd0be"
 	expectedPkDataStr := "0395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3b"
@@ -1977,7 +1977,7 @@ func TestCreateAndSingedTransaction2(t *testing.T) {
 func TestCreateAndSingedTransaction3(t *testing.T) {
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	expectedRawDataStr := "0100000001804048ce8af4a27a742993f86be619c1cb78a6fc40e5914c6d026f3b91b5997b0000000000ffffffff01b8b70d00000000001976a914f5e14e43e474738731b7f1ec64b8d090e0e1f9fe88ac00000000"
 	expectedSignHashStr := "88ff62637e4ada4d18843cf988c02c4a6e97264b18e99806e6956fc29a83009c"
 	expectedPkDataStr := "0395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3b"
@@ -2089,85 +2089,85 @@ func TestCreateAndSingedTransaction3(t *testing.T) {
 }
 
 // used to send
-func TestCreateAndSingedTransaction4(t *testing.T) {
-	btcChainAdaptor := newChainAdaptorWithConfig(conf)
+/* func TestCreateAndSingedTransaction4(t *testing.T) { */
+// btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
-	client.compressed = false
-	// expectedRawDataStr := "010000000145138613310ded962b679f31268faaf73ca2cdf1e6e44c61d16cd21d97be71ed0000000000ffffffff02a0bb0d00000000001976a914eed9944e930bf91b0d0636be81430ec141eae51988acd07e0100000000001976a914ac80df1fa9dd5740c6f17e03b0ca6ce8d871c9a088ac00000000"
-	// expectedSignHashStr := "1e589854304006c8669ca7fd9fbef23594eb33484886a4423ca8dc62908fd0be"
-	// expectedPkDataStr := "0395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3b"
-	// expectedSigStr := "3045022100af824d0774c234628a0302a307b9abd2ed6bffc60d59eb6f85ba1d8dd445ea080220492ab01d0ed4dc565fa857613e33ec1663c6c46d580357aa349d6bc0fea5437301"
-	// expectedSignedTxStr := "010000000145138613310ded962b679f31268faaf73ca2cdf1e6e44c61d16cd21d97be71ed000000006b483045022100af824d0774c234628a0302a307b9abd2ed6bffc60d59eb6f85ba1d8dd445ea080220492ab01d0ed4dc565fa857613e33ec1663c6c46d580357aa349d6bc0fea5437301210395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3bffffffff02a0bb0d00000000001976a914eed9944e930bf91b0d0636be81430ec141eae51988acd07e0100000000001976a914ac80df1fa9dd5740c6f17e03b0ca6ce8d871c9a088ac00000000"
-	// expectedHashStr := "7b99b5913b6f026d4c91e540fca678cbc119e66bf89329747aa2f48ace484080"
-	// reverseHashStr := "804048ce8af4a27a742993f86be619c1cb78a6fc40e5914c6d026f3b91b5997b"
+// client := btcChainAdaptor.getClient()
+// client.compressed = false
+// // expectedRawDataStr := "010000000145138613310ded962b679f31268faaf73ca2cdf1e6e44c61d16cd21d97be71ed0000000000ffffffff02a0bb0d00000000001976a914eed9944e930bf91b0d0636be81430ec141eae51988acd07e0100000000001976a914ac80df1fa9dd5740c6f17e03b0ca6ce8d871c9a088ac00000000"
+// // expectedSignHashStr := "1e589854304006c8669ca7fd9fbef23594eb33484886a4423ca8dc62908fd0be"
+// // expectedPkDataStr := "0395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3b"
+// // expectedSigStr := "3045022100af824d0774c234628a0302a307b9abd2ed6bffc60d59eb6f85ba1d8dd445ea080220492ab01d0ed4dc565fa857613e33ec1663c6c46d580357aa349d6bc0fea5437301"
+// // expectedSignedTxStr := "010000000145138613310ded962b679f31268faaf73ca2cdf1e6e44c61d16cd21d97be71ed000000006b483045022100af824d0774c234628a0302a307b9abd2ed6bffc60d59eb6f85ba1d8dd445ea080220492ab01d0ed4dc565fa857613e33ec1663c6c46d580357aa349d6bc0fea5437301210395a2c1cddab943e4eef857968e2a5cc2e587c92b598e8517830869c5f3203f3bffffffff02a0bb0d00000000001976a914eed9944e930bf91b0d0636be81430ec141eae51988acd07e0100000000001976a914ac80df1fa9dd5740c6f17e03b0ca6ce8d871c9a088ac00000000"
+// // expectedHashStr := "7b99b5913b6f026d4c91e540fca678cbc119e66bf89329747aa2f48ace484080"
+// // reverseHashStr := "804048ce8af4a27a742993f86be619c1cb78a6fc40e5914c6d026f3b91b5997b"
 
-	vin := []*proto.Vin{
-		{Hash: "68f1dd81e44fc474535a36545d4748b236062145f2580f1369f891f37eec1df8", Index: uint32(0), Amount: int64(720000), Address: "mhoGjKn5xegDXL6u5LFSUQdm5ozdM6xao9"},
-	}
-	vout := []*proto.Vout{
-		{Address: "mt9guuanGED4j23FCJKAhLQ3nRTNjPqK8J", Amount: int64(719500)},
-	}
+// vin := []*proto.Vin{
+// {Hash: "68f1dd81e44fc474535a36545d4748b236062145f2580f1369f891f37eec1df8", Index: uint32(0), Amount: int64(720000), Address: "mhoGjKn5xegDXL6u5LFSUQdm5ozdM6xao9"},
+// }
+// vout := []*proto.Vout{
+// {Address: "mt9guuanGED4j23FCJKAhLQ3nRTNjPqK8J", Amount: int64(719500)},
+// }
 
-	req1 := proto.CreateUtxoTransactionRequest{
-		Chain:  ChainName,
-		Symbol: Symbol,
-		Vins:   vin,
-		Vouts:  vout,
-		Fee:    big.NewInt(0).SetInt64(500).String(),
-	}
+// req1 := proto.CreateUtxoTransactionRequest{
+// Chain:  ChainName,
+// Symbol: Symbol,
+// Vins:   vin,
+// Vouts:  vout,
+// Fee:    big.NewInt(0).SetInt64(500).String(),
+// }
 
-	reply1, err := btcChainAdaptor.CreateUtxoTransaction(&req1)
-	require.NoError(t, err)
+// reply1, err := btcChainAdaptor.CreateUtxoTransaction(&req1)
+// require.NoError(t, err)
 
-	// Sign with Prviate key
-	priWif, err := btcutil.DecodeWIF("cMqUKKvaEzKfPnooWk5fRe5c5CXGw2R1KEKefdkktTDSzSGmqfxN")
-	assert.Nil(t, err)
-	privKey := priWif.PrivKey
-	pkData, sig0 := signOneVin(privKey, reply1.SignHashes[0], client.compressed)
+// // Sign with Prviate key
+// priWif, err := btcutil.DecodeWIF("cMqUKKvaEzKfPnooWk5fRe5c5CXGw2R1KEKefdkktTDSzSGmqfxN")
+// assert.Nil(t, err)
+// privKey := priWif.PrivKey
+// pkData, sig0 := signOneVin(privKey, reply1.SignHashes[0], client.compressed)
 
-	originSig0, err := btcec.ParseSignature(sig0, btcec.S256())
-	assert.Nil(t, err)
-	r, s := originSig0.R.Bytes(), originSig0.S.Bytes()
-	sig := make([]byte, 65)
-	copy(sig[32-len(r):32], r)
-	copy(sig[64-len(s):64], s)
-	sig[64] = 0
+// originSig0, err := btcec.ParseSignature(sig0, btcec.S256())
+// assert.Nil(t, err)
+// r, s := originSig0.R.Bytes(), originSig0.S.Bytes()
+// sig := make([]byte, 65)
+// copy(sig[32-len(r):32], r)
+// copy(sig[64-len(s):64], s)
+// sig[64] = 0
 
-	// creat sigscript and verify
-	r1 := new(big.Int).SetBytes(sig[0:32])
-	s1 := new(big.Int).SetBytes(sig[32:64])
-	assert.True(t, originSig0.R.Cmp(r1) == 0)
-	assert.True(t, originSig0.S.Cmp(s1) == 0)
+// // creat sigscript and verify
+// r1 := new(big.Int).SetBytes(sig[0:32])
+// s1 := new(big.Int).SetBytes(sig[32:64])
+// assert.True(t, originSig0.R.Cmp(r1) == 0)
+// assert.True(t, originSig0.S.Cmp(s1) == 0)
 
-	req3 := proto.CreateUtxoSignedTransactionRequest{
-		Chain:      ChainName,
-		Symbol:     Symbol,
-		TxData:     reply1.TxData, // rawData
-		PublicKeys: [][]byte{pkData},
-		Signatures: [][]byte{sig},
-	}
+// req3 := proto.CreateUtxoSignedTransactionRequest{
+// Chain:      ChainName,
+// Symbol:     Symbol,
+// TxData:     reply1.TxData, // rawData
+// PublicKeys: [][]byte{pkData},
+// Signatures: [][]byte{sig},
+// }
 
-	reply3, err := btcChainAdaptor.CreateUtxoSignedTransaction(&req3)
-	assert.Nil(t, err)
+// reply3, err := btcChainAdaptor.CreateUtxoSignedTransaction(&req3)
+// assert.Nil(t, err)
 
-	req5 := proto.BroadcastTransactionRequest{
-		Chain:        ChainName,
-		Symbol:       Symbol,
-		SignedTxData: reply3.SignedTxData,
-	}
+// req5 := proto.BroadcastTransactionRequest{
+// Chain:        ChainName,
+// Symbol:       Symbol,
+// SignedTxData: reply3.SignedTxData,
+// }
 
-	reply5, err := btcChainAdaptor.BroadcastTransaction(&req5)
-	require.NoError(t, err)
-	t.Logf("txhash:%v", reply5.TxHash)
+// reply5, err := btcChainAdaptor.BroadcastTransaction(&req5)
+// require.NoError(t, err)
+// t.Logf("txhash:%v", reply5.TxHash)
 
-}
+/* } */
 
 func TestBroadcastTx(t *testing.T) {
 	t.Skip("test with prepared env")
 	btcChainAdaptor := newChainAdaptorWithConfig(conf)
 
-	client := btcChainAdaptor.client
+	client := btcChainAdaptor.getClient()
 	client.compressed = true
 
 	vin := []*proto.Vin{

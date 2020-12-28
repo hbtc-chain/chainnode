@@ -1,13 +1,14 @@
 package tron
 
 import (
+	"testing"
+
 	"github.com/hbtc-chain/chainnode/config"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestGetLatestBlock(t *testing.T) {
-	client := tronChainAdaptor.(*ChainAdaptor).client
+	client := tronChainAdaptor.(*ChainAdaptor).getClient()
 
 	block, err := client.grpcClient.GetNowBlock()
 	require.Nil(t, err)
@@ -21,10 +22,10 @@ func TestGetLatestBlock2(t *testing.T) {
 
 	t.Logf("conf:%v", conf)
 
-	client, err := newTronClient(conf)
+	clients, err := newTronClients(conf)
 	require.Nil(t, err)
 
-	block, err := client.grpcClient.GetBlockByNum(1)
+	block, err := clients[0].grpcClient.GetBlockByNum(1)
 
 	t.Logf("block:%v", block)
 }
@@ -35,10 +36,10 @@ func TestGetBalance(t *testing.T) {
 
 	t.Logf("conf:%v", conf)
 
-	client, err := newTronClient(conf)
+	clients, err := newTronClients(conf)
 	require.Nil(t, err)
 
-	acc, err := client.grpcClient.GetAccount("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b")
+	acc, err := clients[0].grpcClient.GetAccount("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b")
 	require.Nil(t, err)
 	require.NotNil(t, acc)
 	//t.Logf("acc:%v", acc)

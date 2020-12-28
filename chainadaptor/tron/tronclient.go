@@ -1,6 +1,7 @@
 package tron
 
 import (
+	"errors"
 	"math/big"
 	"net"
 	"strings"
@@ -32,48 +33,57 @@ type tronClient struct {
 }
 
 // newTronClient init the tron client
-func newTronClient(conf *config.Config) (*tronClient, error) {
-	var client tronClient
+func newTronClients(conf *config.Config) ([]*tronClient, error) {
+	var clients []*tronClient
 	log.Info("tron client setup", "network", conf.NetWork)
+	for _, rpc := range conf.Fullnode.Trx.RPCs {
+		var client tronClient
+		client.confirmations = conf.Fullnode.Trx.Confirmations
 
-	var err error
-	var rpcURL string
+		rpcURL := rpc.RPCURL
+		domain := strings.TrimPrefix(rpc.RPCURL, "http://")
+		domain = strings.TrimPrefix(domain, "https://")
+		if strings.Contains(domain, ":") {
+			words := strings.Split(domain, ":")
 
-	client.confirmations = conf.Fullnode.Trx.Confirmations
+			ipAddr, err := net.ResolveIPAddr("ip", words[0])
+			if err != nil {
+				log.Error("resolve eth domain failed", "url", rpc.RPCURL)
+				continue
+			}
+			log.Info("tronclient setup client", "ip", ipAddr)
 
-	domain := strings.TrimPrefix(conf.Fullnode.Trx.RPCURL, "http://")
-	domain = strings.TrimPrefix(domain, "https://")
-	if strings.Contains(domain, ":") {
-		words := strings.Split(domain, ":")
-
-		var ipAddr *net.IPAddr
-		ipAddr, err = net.ResolveIPAddr("ip", words[0])
-		if err != nil {
-			log.Error("resolve eth domain failed", "url", conf.Fullnode.Trx.RPCURL)
-			return nil, err
+			rpcURL = strings.Replace(rpc.RPCURL, words[0], ipAddr.String(), 1)
 		}
-		log.Info("tronclient setup client", "ip", ipAddr)
+		c := tclient.NewGrpcClient(rpcURL)
+		if err := c.Start(); err != nil {
+			continue
+		}
 
-		rpcURL = strings.Replace(conf.Fullnode.Trx.RPCURL, words[0], ipAddr.String(), 1)
-	} else {
-		rpcURL = conf.Fullnode.Trx.RPCURL
+		client.chainID = ChainIDTest
+		if conf.NetWork == "mainnet" {
+			client.chainID = ChainIDMain
+		}
+		client.grpcClient = c
+		clients = append(clients, &client)
 	}
-	c := tclient.NewGrpcClient(rpcURL)
-	if err := c.Start(); err != nil {
-		return nil, err
+	if len(clients) == 0 {
+		return nil, errors.New("No clients available")
 	}
 
-	client.chainID = ChainIDTest
-	if conf.NetWork == "mainnet" {
-		client.chainID = ChainIDMain
-	}
-	client.grpcClient = c
-
-	return &client, nil
+	return clients, nil
 }
 
 func (t *tronClient) Close() {
 	t.grpcClient.Stop()
+}
+
+func (t *tronClient) GetLatestBlockHeight() (int64, error) {
+	res, err := t.grpcClient.GetNowBlock()
+	if err != nil {
+		return 0, err
+	}
+	return res.GetBlockHeader().GetRawData().GetNumber(), nil
 }
 
 func newLocalTronClient(network config.NetWorkType) *tronClient {

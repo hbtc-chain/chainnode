@@ -3,6 +3,10 @@ package tron
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/hbtc-chain/gotron-sdk/pkg/address"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/api"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/core"
@@ -10,13 +14,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func TestSendTrx(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.Transfer("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "TPTuUqaJfhxcYFNdt76u11oZrDrm21RRHp", 12000000)
 	require.Nil(t, err)
@@ -65,7 +66,7 @@ func TestSendTrx(t *testing.T) {
 }
 
 func TestSendTrx2(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.Transfer("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "TJbsQjACJqnU5ZRaMWhGcWvi7uiZ6wpJto", 100000)
 	require.Nil(t, err)
@@ -123,7 +124,7 @@ var (
 )
 
 func TestSendTrxWith60sDelay(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.Transfer("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "TRGvtQpC8cpk1ksbwLn7xr5DK7aYZgmWcA", 10000000)
 	require.Nil(t, err)
@@ -141,7 +142,7 @@ func TestSendTrxWith60sDelay(t *testing.T) {
 }
 
 func TestSendTrxWith60sDelayChangeExpiration(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.Transfer("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "THW8qemoiX5mF7m7kHWv333H4ZnP1amdYa", 10000000)
 	require.Nil(t, err)
@@ -169,7 +170,7 @@ func TestSendTrxWith60sDelayChangeExpiration(t *testing.T) {
 }
 
 func TestSendTrxInReserveOrdder(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTxs := make([]*api.TransactionExtention, 0)
 
@@ -227,7 +228,7 @@ func TestSendTrxInReserveOrdder(t *testing.T) {
 
 //in tron
 func TestIssueTrc10(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	startTime := time.Now().UTC().UnixNano()
 	endTime := startTime + 10000
@@ -277,7 +278,7 @@ func TestIssueTrc10(t *testing.T) {
 }
 
 func TestSendTrc10(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.TransferAsset("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "TJbsQjACJqnU5ZRaMWhGcWvi7uiZ6wpJto", "1000315", 1000000)
 	require.Nil(t, err)
@@ -322,7 +323,7 @@ func TestSendTrc10(t *testing.T) {
 }
 
 func TestSendTrc20(t *testing.T) {
-	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 
 	rawTx, err := grpcClient.TRC20Send("TYbcQrwHHjcd3n4pKGkxmCnjtw3nPoBs8b", "TJbsQjACJqnU5ZRaMWhGcWvi7uiZ6wpJto", "TU4oHpbNZjkji932GkYf4Pja1CxhpopQnF", big.NewInt(1000000), 1000000)
 	require.Nil(t, err)
@@ -370,7 +371,7 @@ func TestSendTrc20(t *testing.T) {
 
 //This case will success only once
 //func TestDeployTrc20Contract(t *testing.T) {
-//	grpcClient := tronChainAdaptor.(*ChainAdaptor).client.grpcClient
+//	grpcClient := tronChainAdaptor.(*ChainAdaptor).getClient().grpcClient
 //
 //	startTime := time.Now().UTC().UnixNano()
 //	endTime := startTime + 10000

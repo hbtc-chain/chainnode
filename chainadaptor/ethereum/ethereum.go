@@ -25,6 +25,7 @@ import (
 	"github.com/hbtc-chain/chainnode/cache"
 	"github.com/hbtc-chain/chainnode/chainadaptor"
 	"github.com/hbtc-chain/chainnode/chainadaptor/fallback"
+	"github.com/hbtc-chain/chainnode/chainadaptor/multiclient"
 	"github.com/hbtc-chain/chainnode/config"
 	"github.com/hbtc-chain/chainnode/proto"
 )
@@ -36,16 +37,20 @@ const (
 
 type ChainAdaptor struct {
 	fallback.ChainAdaptor
-	client *ethClient
+	clients *multiclient.MultiClient
 }
 
 func NewChainAdaptor(conf *config.Config) (chainadaptor.ChainAdaptor, error) {
-	client, err := newEthClient(conf)
+	clients, err := newEthClients(conf)
 	if err != nil {
 		return nil, err
 	}
+	clis := make([]multiclient.Client, len(clients))
+	for i, client := range clients {
+		clis[i] = client
+	}
 	return &ChainAdaptor{
-		client: client,
+		clients: multiclient.New(clis),
 	}, nil
 }
 
@@ -55,8 +60,12 @@ func NewLocalChainAdaptor(network config.NetWorkType) chainadaptor.ChainAdaptor 
 
 func newChainAdaptor(client *ethClient) chainadaptor.ChainAdaptor {
 	return &ChainAdaptor{
-		client: client,
+		clients: multiclient.New([]multiclient.Client{client}),
 	}
+}
+
+func (a *ChainAdaptor) getClient() *ethClient {
+	return a.clients.BestClient().(*ethClient)
 }
 
 // ConvertAddress convert BlueHelix chain's pubkey to a ETH address
@@ -85,8 +94,8 @@ func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.Vali
 	log.Info("valid address", "address", req.Address, "valid", valid, "standardAddreess", stdAddr.String())
 
 	isContract := false
-	if !a.client.local {
-		isContract = a.client.isContractAddress(stdAddr)
+	if !a.getClient().local {
+		isContract = a.getClient().isContractAddress(stdAddr)
 	}
 
 	return &proto.ValidAddressReply{
@@ -116,9 +125,9 @@ func (a *ChainAdaptor) QueryBalance(req *proto.QueryBalanceRequest) (*proto.Quer
 
 	if req.BlockHeight == 0 {
 		if len(req.ContractAddress) > 0 {
-			result, err = a.client.erc20BalanceOf(req.ContractAddress, req.Address, nil)
+			result, err = a.getClient().erc20BalanceOf(req.ContractAddress, req.Address, nil)
 		} else {
-			result, err = a.client.BalanceAt(context.TODO(), common.HexToAddress(req.Address), nil)
+			result, err = a.getClient().BalanceAt(context.TODO(), common.HexToAddress(req.Address), nil)
 		}
 		if err != nil {
 			log.Error("get balance error", "err", err)
@@ -129,9 +138,9 @@ func (a *ChainAdaptor) QueryBalance(req *proto.QueryBalanceRequest) (*proto.Quer
 		}
 	} else {
 		if len(req.ContractAddress) > 0 {
-			result, err = a.client.erc20BalanceOf(req.ContractAddress, req.Address, big.NewInt(int64(req.BlockHeight)))
+			result, err = a.getClient().erc20BalanceOf(req.ContractAddress, req.Address, big.NewInt(int64(req.BlockHeight)))
 		} else {
-			result, err = a.client.BalanceAt(context.TODO(), common.HexToAddress(req.Address), big.NewInt(int64(req.BlockHeight)))
+			result, err = a.getClient().BalanceAt(context.TODO(), common.HexToAddress(req.Address), big.NewInt(int64(req.BlockHeight)))
 		}
 		if err != nil {
 			log.Error("get balance error", "err", err)
@@ -153,7 +162,7 @@ func (a *ChainAdaptor) QueryBalance(req *proto.QueryBalanceRequest) (*proto.Quer
 
 func (a *ChainAdaptor) QueryNonce(req *proto.QueryNonceRequest) (*proto.QueryNonceReply, error) {
 	var bockHeight *big.Int
-	nonce, err := a.client.NonceAt(context.TODO(), common.HexToAddress(req.Address), bockHeight)
+	nonce, err := a.getClient().NonceAt(context.TODO(), common.HexToAddress(req.Address), bockHeight)
 	if err != nil {
 		log.Error("get nonce failed", "err", err)
 		return &proto.QueryNonceReply{
@@ -169,7 +178,7 @@ func (a *ChainAdaptor) QueryNonce(req *proto.QueryNonceRequest) (*proto.QueryNon
 }
 
 func (a *ChainAdaptor) QueryGasPrice(_ *proto.QueryGasPriceRequest) (*proto.QueryGasPriceReply, error) {
-	price, err := a.client.SuggestGasPrice(context.TODO())
+	price, err := a.getClient().SuggestGasPrice(context.TODO())
 	if err != nil {
 		log.Error("get gas price failed", "err", err)
 		return &proto.QueryGasPriceReply{
@@ -193,7 +202,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 		return r.(*proto.QueryAccountTransactionReply), nil
 	}
 
-	tx, pending, err := a.client.TransactionByHash(context.TODO(), common.HexToHash(req.TxHash))
+	tx, pending, err := a.getClient().TransactionByHash(context.TODO(), common.HexToHash(req.TxHash))
 	if err != nil {
 		if err == ethereum.NotFound {
 			return &proto.QueryAccountTransactionReply{
@@ -216,7 +225,7 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 		}, nil
 	}
 
-	receipt, err := a.client.TransactionReceipt(context.TODO(), common.HexToHash(req.TxHash))
+	receipt, err := a.getClient().TransactionReceipt(context.TODO(), common.HexToHash(req.TxHash))
 	if err != nil {
 		log.Error("get transaction receipt error", "err", err)
 		return &proto.QueryAccountTransactionReply{
@@ -260,8 +269,8 @@ func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionReques
 	}
 	log.Info("get transaction for confirmations", "block", blockNumber.String(),
 		"txBlockNumber", txBlockNumber.String(),
-		"confirmations", a.client.confirmations)
-	if big.NewInt(0).Sub(blockNumber, txBlockNumber).Int64() < int64(a.client.confirmations) {
+		"confirmations", a.getClient().confirmations)
+	if big.NewInt(0).Sub(blockNumber, txBlockNumber).Int64() < int64(a.getClient().confirmations) {
 		log.Info("get transaction ", "pending", pending)
 		return &proto.QueryAccountTransactionReply{
 			Code:     proto.ReturnCode_SUCCESS,
@@ -400,7 +409,7 @@ func (a *ChainAdaptor) CreateAccountTransaction(req *proto.CreateAccountTransact
 	// make transaction
 	var tx *types.Transaction
 	if len(req.ContractAddress) > 0 {
-		tx, err = a.client.erc20RawTransfer(req.ContractAddress, nonce, common.HexToAddress(req.To), assetAmount,
+		tx, err = a.getClient().erc20RawTransfer(req.ContractAddress, nonce, common.HexToAddress(req.To), assetAmount,
 			gasLimit.Uint64(), gasPrice)
 		if err != nil {
 			log.Error("ERC20 tx raw transfer failed", "err", err)
@@ -484,7 +493,7 @@ func (a *ChainAdaptor) BroadcastTransaction(req *proto.BroadcastTransactionReque
 	log.Info("broadcast tx", "tx", hexutil.Encode(req.SignedTxData))
 
 	txHash := fmt.Sprintf("0x%x", signedTx.Hash())
-	if err := a.client.SendTransaction(context.TODO(), signedTx); err != nil {
+	if err := a.getClient().SendTransaction(context.TODO(), signedTx); err != nil {
 		log.Error("braoadcast tx failed", "tx_hash", txHash, "err", err)
 		return &proto.BroadcastTransactionReply{
 			Code: proto.ReturnCode_ERROR,
@@ -534,15 +543,11 @@ func (a *ChainAdaptor) VerifyAccountSignedTransaction(req *proto.VerifySignedTra
 }
 
 func (a *ChainAdaptor) GetLatestBlockHeight() (int64, error) {
-	number, err := a.client.BlockByNumber(context.TODO(), nil)
-	if err != nil {
-		return 0, err
-	}
-	return number.Number().Int64(), err
+	return a.getClient().GetLatestBlockHeight()
 }
 
 func (a *ChainAdaptor) GetAccountTransactionByHeight(height int64, replyCh chan *proto.QueryAccountTransactionReply, errCh chan error) {
-	block, err := a.client.BlockByNumber(context.TODO(), big.NewInt(height))
+	block, err := a.getClient().BlockByNumber(context.TODO(), big.NewInt(height))
 	if err != nil {
 		errCh <- err
 		return
@@ -567,7 +572,7 @@ func (a *ChainAdaptor) GetAccountTransactionByHeight(height int64, replyCh chan 
 				return
 			}
 
-			receipt, err := a.client.TransactionReceipt(context.TODO(), tx.Hash())
+			receipt, err := a.getClient().TransactionReceipt(context.TODO(), tx.Hash())
 			if err != nil {
 				errCh <- err
 				needStop.Store(true)
@@ -667,7 +672,7 @@ func stringToInt(amount string) *big.Int {
 // isContractAddress check the address is a contract address or not
 
 func (a *ChainAdaptor) blockNumber() *big.Int {
-	return a.client.blockNumber()
+	return a.getClient().blockNumber()
 }
 
 func (a *ChainAdaptor) makeSigner() (types.Signer, error) {
@@ -677,14 +682,14 @@ func (a *ChainAdaptor) makeSigner() (types.Signer, error) {
 		return nil, err
 	}
 	log.Info("make signer", "height", height.Uint64())
-	return types.MakeSigner(a.client.chainConfig, height), nil
+	return types.MakeSigner(a.getClient().chainConfig, height), nil
 }
 
 func (a *ChainAdaptor) makeSignerOffline(height int64) types.Signer {
 	if height == 0 {
 		height = math.MaxInt64
 	}
-	return types.MakeSigner(a.client.chainConfig, big.NewInt(height))
+	return types.MakeSigner(a.getClient().chainConfig, big.NewInt(height))
 }
 
 // queryTransaction retrieve transaction information from a signed data.

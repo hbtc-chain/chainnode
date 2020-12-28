@@ -18,7 +18,7 @@ const (
 func TestBalanceOf(t *testing.T) {
 	t.Skip("can'nt access to archive state")
 
-	client := ethChainAdaptor.(*ChainAdaptor).client
+	client := ethChainAdaptor.(*ChainAdaptor).getClient()
 
 	address := "0x00Cb32D3C9c0040E117158AaBBa7ACEE6f7Be307"
 	balance, err := client.erc20BalanceOf(tbtcContractAddress, address, big.NewInt(6981577))
@@ -35,7 +35,7 @@ func TestBalanceOf(t *testing.T) {
 }
 
 func TestDecimal(t *testing.T) {
-	client := ethChainAdaptor.(*ChainAdaptor).client
+	client := ethChainAdaptor.(*ChainAdaptor).getClient()
 	decimals, err := client.erc20Decimals(tbtcContractAddress)
 	assert.NoError(t, err)
 	assert.Equal(t, uint8(8), decimals)

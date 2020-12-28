@@ -15,17 +15,21 @@ type Server struct {
 
 // RPC connection info define
 type RPC struct {
-	RPCURL        string `yaml:"rpc_url"`
-	RPCUser       string `yaml:"rpc_user"`
-	RPCPass       string `yaml:"rpc_pass"`
+	RPCURL  string `yaml:"rpc_url"`
+	RPCUser string `yaml:"rpc_user"`
+	RPCPass string `yaml:"rpc_pass"`
+}
+
+type Node struct {
+	RPCs          []*RPC `yaml:"rpcs"`
 	Confirmations uint64 `yaml:"confirmations"`
 }
 
 // Fullnode define
 type Fullnode struct {
-	Btc RPC `yaml:"btc"`
-	Eth RPC `yaml:"eth"`
-	Trx RPC `yaml:"trx"`
+	Btc Node `yaml:"btc"`
+	Eth Node `yaml:"eth"`
+	Trx Node `yaml:"trx"`
 }
 
 // Config instance define

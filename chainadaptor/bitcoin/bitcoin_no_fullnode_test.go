@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/hbtc-chain/chainnode/config"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestConvertAddressNoFullNode(t *testing.T) {
-	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClient(newLocalBtcClient(config.TestNet))
+	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(config.TestNet)})
 
 	genPub2Addr()
 
@@ -28,7 +27,7 @@ func TestConvertAddressNoFullNode(t *testing.T) {
 	}
 
 	// change to mainnet params
-	btcChainAdaptorWithoutFullNode.client.chainConfig = &chaincfg.MainNetParams
+	btcChainAdaptorWithoutFullNode = newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(config.MainNet)})
 	for _, a := range keyAddrComb {
 		req.PublicKey = a.pubKey
 		reply, err := btcChainAdaptorWithoutFullNode.ConvertAddress(&req)
@@ -38,7 +37,7 @@ func TestConvertAddressNoFullNode(t *testing.T) {
 }
 
 func TestValidAddressNoFullNode(t *testing.T) {
-	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClient(newLocalBtcClient(config.TestNet))
+	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(config.TestNet)})
 
 	genPub2Addr()
 
@@ -84,7 +83,7 @@ func TestValidAddressNoFullNode(t *testing.T) {
 	}
 
 	// mainnet params
-	btcChainAdaptorWithoutFullNode.client.chainConfig = &chaincfg.MainNetParams
+	btcChainAdaptorWithoutFullNode = newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(config.MainNet)})
 	for _, a := range keyAddrComb {
 		req.Address = a.mainAddr
 		reply, err := btcChainAdaptorWithoutFullNode.ValidAddress(&req)
@@ -281,7 +280,7 @@ func TestVerifySignedTransactionFromDifferentAddressNoFullNode(t *testing.T) {
 }
 
 func TestCreateTransactionAmountMismatchNoFullNode(t *testing.T) {
-	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClient(newLocalBtcClient(config.TestNet))
+	btcChainAdaptorWithoutFullNode := newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(config.TestNet)})
 
 	vin := []*proto.Vin{
 		{Hash: "c94a4debf11bfef9316681f61fb663d15ed7a6ad8698063c4f1348575aec57a9", Index: uint32(0), Amount: int64(32500000), Address: "mhoGjKn5xegDXL6u5LFSUQdm5ozdM6xao9"},

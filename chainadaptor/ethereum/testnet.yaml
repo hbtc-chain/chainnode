@@ -1,3 +1,4 @@
 fullnode:
   eth:
-    rpc_url: 
+    rpcs:
+      - rpc_url: 

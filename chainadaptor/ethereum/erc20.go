@@ -98,7 +98,7 @@ func (a *ChainAdaptor) validateAndQueryERC20RawTransfer(contract common.Address,
 		err = errors.New("Invalid ERC20 transfer transaction with empty data")
 		return
 	}
-	to, amount, err = a.client.unpackTransfer(contract, tx.Data())
+	to, amount, err = a.getClient().unpackTransfer(contract, tx.Data())
 	if err != nil {
 		log.Error("Invalid ERC20 transfer with unpack error", "err", err)
 		err = fmt.Errorf("Invalid ERC20 transfer with unpack error: %v", err)
@@ -109,10 +109,10 @@ func (a *ChainAdaptor) validateAndQueryERC20RawTransfer(contract common.Address,
 
 func (a *ChainAdaptor) validateAndQueryERC20TransferReceipt(contract common.Address, from, to string,
 	value string, receipt *types.Receipt) error {
-	if a.client == nil {
+	if a.getClient() == nil {
 		return errors.New("nil client")
 	}
-	tokenContractWrapper, err := factory.NewTokenContractWrapper(contract, a.client)
+	tokenContractWrapper, err := factory.NewTokenContractWrapper(contract, a.getClient())
 	if err != nil {
 		log.Error("Failed to create token contract wrapper", "err", err)
 		return err

@@ -7,7 +7,7 @@ network: testnet
 
 fullnode:
   eth:
-    rpc_url: 
+    rpc_url:
     confirmations: 4
     
 tokens:

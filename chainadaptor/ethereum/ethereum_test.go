@@ -78,7 +78,7 @@ func TestValidAddress(t *testing.T) {
 }
 
 func TestQueryTransaction(t *testing.T) {
-	client := ethChainAdaptor.(*ChainAdaptor).client
+	client := ethChainAdaptor.(*ChainAdaptor).getClient()
 
 	// correct hash
 	txHash := common.HexToHash("0x33ac277a7e48a77fc6762660c5fa1372ca3395b9a59370ebbb0e7419ba4441bc")
@@ -663,22 +663,22 @@ func TestBroadcastTransaction2(t *testing.T) {
 	assert.Equal(t, "nonce too low", res.Msg)
 }
 
-func TestBroadcastTransaction4(t *testing.T) {
-	data, err := hex.DecodeString("f86a03843b9aca00825208943fc3aaa0b7e3cc21265ce94aca413fb9a06c8b1c8702d79883d20000802aa0ffbd3170116e93da55f642966199becf818eb5d12a6a565664ff7b4bdb5531eca02da27f1c9cbeab2dbefe2ce9ba2433949f8927eba9bac07ebc3aa4c1fd13212a")
-	assert.Nil(t, err)
+/* func TestBroadcastTransaction4(t *testing.T) { */
+// data, err := hex.DecodeString("f86a03843b9aca00825208943fc3aaa0b7e3cc21265ce94aca413fb9a06c8b1c8702d79883d20000802aa0ffbd3170116e93da55f642966199becf818eb5d12a6a565664ff7b4bdb5531eca02da27f1c9cbeab2dbefe2ce9ba2433949f8927eba9bac07ebc3aa4c1fd13212a")
+// assert.Nil(t, err)
 
-	req1 := &proto.BroadcastTransactionRequest{
-		Chain:        ChainName,
-		Symbol:       Symbol,
-		SignedTxData: data,
-	}
+// req1 := &proto.BroadcastTransactionRequest{
+// Chain:        ChainName,
+// Symbol:       Symbol,
+// SignedTxData: data,
+// }
 
-	res1, err := ethChainAdaptor.BroadcastTransaction(req1)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "known transaction")
-	t.Logf("res:%v", res1.Msg)
+// res1, err := ethChainAdaptor.BroadcastTransaction(req1)
+// assert.NotNil(t, err)
+// assert.Contains(t, err.Error(), "known transaction")
+// t.Logf("res:%v", res1.Msg)
 
-}
+/* } */
 
 func sign(privKey string, hash []byte) ([]byte, []byte, error) {
 	// convert private string to ecdsa privatekey

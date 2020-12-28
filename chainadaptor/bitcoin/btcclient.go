@@ -27,9 +27,7 @@ type btcClient struct {
 	compressed  bool
 }
 
-func newBtcClient(conf *config.Config) (*btcClient, error) {
-	var btc btcClient
-
+func newBtcClients(conf *config.Config) ([]*btcClient, error) {
 	chainConfig := &chaincfg.TestNet3Params
 	if conf.NetWork == "mainnet" {
 		chainConfig = &chaincfg.MainNetParams
@@ -38,23 +36,30 @@ func newBtcClient(conf *config.Config) (*btcClient, error) {
 	}
 	log.Info("btc client setup", "network", conf.NetWork)
 
-	client, err := rpcclient.New(&rpcclient.ConnConfig{
-		HTTPPostMode: true,
-		DisableTLS:   true,
-		Host:         conf.Fullnode.Btc.RPCURL,
-		User:         conf.Fullnode.Btc.RPCUser,
-		Pass:         conf.Fullnode.Btc.RPCPass,
-	}, nil)
-
-	if err != nil {
-		log.Error("Fail to create BTC client", "err", err)
-		return nil, err
+	var clients []*btcClient
+	for _, rpc := range conf.Fullnode.Btc.RPCs {
+		client, err := rpcclient.New(&rpcclient.ConnConfig{
+			HTTPPostMode: true,
+			DisableTLS:   true,
+			Host:         rpc.RPCURL,
+			User:         rpc.RPCUser,
+			Pass:         rpc.RPCPass,
+		}, nil)
+		if err != nil {
+			log.Error("Fail to create BTC client", "err", err)
+			continue
+		}
+		clients = append(clients, &btcClient{
+			Client:      client,
+			chainConfig: chainConfig,
+			compressed:  true,
+		})
+	}
+	if len(clients) == 0 {
+		return nil, errors.New("No clients available")
 	}
 
-	btc.Client = client
-	btc.chainConfig = chainConfig
-	btc.compressed = true
-	return &btc, nil
+	return clients, nil
 }
 
 func newLocalBtcClient(network config.NetWorkType) *btcClient {
@@ -269,4 +274,8 @@ func (btc *btcClient) GetNetworkInfo() (*GetNetworkInfoResult, error) {
 	}
 
 	return &result, nil
+}
+
+func (btc *btcClient) GetLatestBlockHeight() (int64, error) {
+	return btc.Client.GetBlockCount()
 }

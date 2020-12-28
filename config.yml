@@ -7,12 +7,14 @@ network: testnet
 
 fullnode:
   btc:
-    rpc_url: 
-    rpc_user:
-    rpc_pass:
+    rpcs:
+      - rpc_url:
+        rpc_user:
+        rpc_pass:
     confirmations: 1
   eth:
-    rpc_url:
+    rpcs:
+      - rpc_url:
     confirmations: 4
 
 chains: [btc, eth]

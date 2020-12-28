@@ -13,6 +13,7 @@ import (
 	"github.com/hbtc-chain/chainnode/cache"
 	"github.com/hbtc-chain/chainnode/chainadaptor"
 	"github.com/hbtc-chain/chainnode/chainadaptor/fallback"
+	"github.com/hbtc-chain/chainnode/chainadaptor/multiclient"
 	"github.com/hbtc-chain/chainnode/config"
 	"github.com/hbtc-chain/chainnode/proto"
 
@@ -40,31 +41,37 @@ const (
 
 type ChainAdaptor struct {
 	fallback.ChainAdaptor
-	client *btcClient
+	clients *multiclient.MultiClient
 }
 
 func NewChainAdaptor(conf *config.Config) (chainadaptor.ChainAdaptor, error) {
-	client, err := newBtcClient(conf)
+	clients, err := newBtcClients(conf)
 	if err != nil {
 		return nil, err
 	}
-	return newChainAdaptorWithClient(client), nil
+	return newChainAdaptorWithClients(clients), nil
 }
 
 func NewLocalChainAdaptor(network config.NetWorkType) chainadaptor.ChainAdaptor {
-	return newChainAdaptorWithClient(newLocalBtcClient(network))
+	return newChainAdaptorWithClients([]*btcClient{newLocalBtcClient(network)})
 }
 
-func newChainAdaptorWithClient(client *btcClient) *ChainAdaptor {
+func newChainAdaptorWithClients(clients []*btcClient) *ChainAdaptor {
+	clis := make([]multiclient.Client, len(clients))
+	for i, client := range clients {
+		clis[i] = client
+	}
 	return &ChainAdaptor{
-		client: client,
+		clients: multiclient.New(clis),
 	}
 }
 
-// ConvertAddress convert pubkey to a actual address
-// TODO(keep), currently convert btc pubkey to btc address, may convert bhex pubkey to btc address
+func (a *ChainAdaptor) getClient() *btcClient {
+	return a.clients.BestClient().(*btcClient)
+}
+
 func (a *ChainAdaptor) ConvertAddress(req *proto.ConvertAddressRequest) (*proto.ConvertAddressReply, error) {
-	addressPubKey, err := btcutil.NewAddressPubKey(req.PublicKey, a.client.GetNetwork())
+	addressPubKey, err := btcutil.NewAddressPubKey(req.PublicKey, a.getClient().GetNetwork())
 	if err != nil {
 		return &proto.ConvertAddressReply{
 			Code: proto.ReturnCode_ERROR,
@@ -80,7 +87,7 @@ func (a *ChainAdaptor) ConvertAddress(req *proto.ConvertAddressRequest) (*proto.
 
 // ValidAddress check whether an address is valid
 func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.ValidAddressReply, error) {
-	address, err := btcutil.DecodeAddress(req.Address, a.client.GetNetwork())
+	address, err := btcutil.DecodeAddress(req.Address, a.getClient().GetNetwork())
 	if err != nil {
 		return &proto.ValidAddressReply{
 			Code: proto.ReturnCode_ERROR,
@@ -88,7 +95,7 @@ func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.Vali
 		}, err
 	}
 
-	if !address.IsForNet(a.client.GetNetwork()) {
+	if !address.IsForNet(a.getClient().GetNetwork()) {
 		err := errors.New("address is not valid for this network")
 		return &proto.ValidAddressReply{
 			Code: proto.ReturnCode_ERROR,
@@ -104,7 +111,7 @@ func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.Vali
 }
 
 func (a *ChainAdaptor) QueryGasPrice(*proto.QueryGasPriceRequest) (*proto.QueryGasPriceReply, error) {
-	reply, err := a.client.EstimateSmartFee(btcFeeBlocks)
+	reply, err := a.getClient().EstimateSmartFee(btcFeeBlocks)
 	if err != nil {
 		log.Info("QueryGasPrice", "err", err)
 		return &proto.QueryGasPriceReply{
@@ -132,7 +139,7 @@ func (a *ChainAdaptor) QueryUtxo(req *proto.QueryUtxoRequest) (*proto.QueryUtxoR
 		}, err
 	}
 
-	reply, err := a.client.GetTxOut(txhash, utxo.Index, true)
+	reply, err := a.getClient().GetTxOut(txhash, utxo.Index, true)
 	if err != nil {
 		log.Info("QueryUtxo GetTxOut", "err", err)
 
@@ -161,7 +168,7 @@ func (a *ChainAdaptor) QueryUtxo(req *proto.QueryUtxoRequest) (*proto.QueryUtxoR
 		}, err
 	}
 
-	tx, err := a.client.GetRawTransactionVerbose(txhash)
+	tx, err := a.getClient().GetRawTransactionVerbose(txhash)
 	if err != nil {
 		log.Info("QueryUtxo GetRawTransactionVerbose", "err", err)
 
@@ -376,7 +383,7 @@ func (a *ChainAdaptor) CreateUtxoSignedTransaction(req *proto.CreateUtxoSignedTr
 		}
 
 		// verify transaction
-		preTx, err2 := a.client.GetRawTransactionVerbose(&in.PreviousOutPoint.Hash)
+		preTx, err2 := a.getClient().GetRawTransactionVerbose(&in.PreviousOutPoint.Hash)
 		if err2 != nil {
 			log.Error("CreateSignedTransaction GetRawTransactionVerbose", "err", err2)
 
@@ -388,7 +395,7 @@ func (a *ChainAdaptor) CreateUtxoSignedTransaction(req *proto.CreateUtxoSignedTr
 
 		log.Info("CreateSignedTransaction ", "from address", preTx.Vout[in.PreviousOutPoint.Index].ScriptPubKey.Addresses[0])
 
-		fromAddress, err2 := btcutil.DecodeAddress(preTx.Vout[in.PreviousOutPoint.Index].ScriptPubKey.Addresses[0], a.client.GetNetwork())
+		fromAddress, err2 := btcutil.DecodeAddress(preTx.Vout[in.PreviousOutPoint.Index].ScriptPubKey.Addresses[0], a.getClient().GetNetwork())
 		if err2 != nil {
 			log.Error("CreateSignedTransaction DecodeAddress", "err", err2)
 
@@ -491,7 +498,7 @@ func (a *ChainAdaptor) BroadcastTransaction(req *proto.BroadcastTransactionReque
 		}, err
 	}
 
-	txHash, err := a.client.SendRawTransaction(&msgTx)
+	txHash, err := a.getClient().SendRawTransaction(&msgTx)
 	if err != nil {
 		return &proto.BroadcastTransactionReply{
 			Code: proto.ReturnCode_ERROR,
@@ -543,17 +550,17 @@ func (a *ChainAdaptor) QueryUtxoInsFromData(req *proto.QueryUtxoInsFromDataReque
 }
 
 func (a *ChainAdaptor) GetLatestBlockHeight() (int64, error) {
-	return a.client.GetBlockCount()
+	return a.getClient().GetLatestBlockHeight()
 }
 
 func (a *ChainAdaptor) GetUtxoTransactionByHeight(height int64, replyCh chan *proto.QueryUtxoTransactionReply, errCh chan error) {
 
-	hash, err := a.client.GetBlockHash(height)
+	hash, err := a.getClient().GetBlockHash(height)
 	if err != nil {
 		errCh <- err
 		return
 	}
-	block, err := a.client.GetBlockWithRawTransactionVerbose(hash)
+	block, err := a.getClient().GetBlockWithRawTransactionVerbose(hash)
 	if err != nil {
 		errCh <- err
 		return
@@ -572,7 +579,7 @@ func (a *ChainAdaptor) GetUtxoTransactionByHeight(height int64, replyCh chan *pr
 }
 
 func (a *ChainAdaptor) queryTransaction(txhash *chainhash.Hash) (*proto.QueryUtxoTransactionReply, error) {
-	tx, err := a.client.GetRawTransactionVerbose(txhash)
+	tx, err := a.getClient().GetRawTransactionVerbose(txhash)
 	if err != nil {
 		if rpcErr, ok := err.(*btcjson.RPCError); ok && rpcErr.Code == btcjson.ErrRPCBlockNotFound {
 			return &proto.QueryUtxoTransactionReply{
@@ -606,7 +613,7 @@ func (a *ChainAdaptor) queryTransaction(txhash *chainhash.Hash) (*proto.QueryUtx
 	}
 
 	blockHash, _ := chainhash.NewHashFromStr(tx.BlockHash)
-	block, err := a.client.GetBlockVerbose(blockHash)
+	block, err := a.getClient().GetBlockVerbose(blockHash)
 	if err != nil {
 		log.Error("queryTransaction GetBlockVerbose", "err", err)
 
@@ -621,7 +628,7 @@ func (a *ChainAdaptor) queryTransaction(txhash *chainhash.Hash) (*proto.QueryUtx
 		if err2 != nil {
 			return 0, "", err2
 		}
-		preTx, err2 := a.client.GetRawTransactionVerbose(preHash)
+		preTx, err2 := a.getClient().GetRawTransactionVerbose(preHash)
 		if err2 != nil {
 			return 0, "", err2
 		}
@@ -729,7 +736,7 @@ func (a *ChainAdaptor) createRawTx(ins []*proto.Vin, outs []*proto.Vout) (*wire.
 			continue
 		}
 
-		toAddress, err := btcutil.DecodeAddress(out.Address, a.client.GetNetwork())
+		toAddress, err := btcutil.DecodeAddress(out.Address, a.getClient().GetNetwork())
 		if err != nil {
 			return nil, err
 		}
@@ -810,7 +817,7 @@ func (a *ChainAdaptor) decodeVouts(msgTx wire.MsgTx) ([]*proto.Vout, *big.Int, e
 	totalAmountOut := big.NewInt(0)
 	for _, out := range msgTx.TxOut {
 		var t proto.Vout
-		_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(out.PkScript, a.client.GetNetwork())
+		_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(out.PkScript, a.getClient().GetNetwork())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -850,7 +857,7 @@ func (a *ChainAdaptor) getVin(offline bool, vins []*proto.Vin, index int, in *wi
 	if offline {
 		vin = vins[index]
 	} else {
-		preTx, err := a.client.GetRawTransactionVerbose(&in.PreviousOutPoint.Hash)
+		preTx, err := a.getClient().GetRawTransactionVerbose(&in.PreviousOutPoint.Hash)
 		if err != nil {
 			return nil, err
 		}
@@ -868,7 +875,7 @@ func (a *ChainAdaptor) getVin(offline bool, vins []*proto.Vin, index int, in *wi
 }
 
 func (a *ChainAdaptor) verifySign(vin *proto.Vin, msgTx wire.MsgTx, index int) error {
-	fromAddress, err := btcutil.DecodeAddress(vin.Address, a.client.GetNetwork())
+	fromAddress, err := btcutil.DecodeAddress(vin.Address, a.getClient().GetNetwork())
 	if err != nil {
 		return err
 	}
@@ -895,7 +902,7 @@ func (a *ChainAdaptor) calcSignHashes(Vins []*proto.Vin, Vouts []*proto.Vout) ([
 	signHashes := make([][]byte, len(Vins))
 	for i, in := range Vins {
 		from := in.Address
-		fromAddr, err := btcutil.DecodeAddress(from, a.client.GetNetwork())
+		fromAddr, err := btcutil.DecodeAddress(from, a.getClient().GetNetwork())
 		if err != nil {
 			log.Info("DecodeAddress err", "from", from, "err", err)
 			return nil, err

@@ -13,19 +13,20 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	pb "github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/hbtc-chain/chainnode/cache"
 	"github.com/hbtc-chain/chainnode/chainadaptor"
 	"github.com/hbtc-chain/chainnode/chainadaptor/fallback"
+	"github.com/hbtc-chain/chainnode/chainadaptor/multiclient"
 	"github.com/hbtc-chain/chainnode/config"
 	"github.com/hbtc-chain/chainnode/proto"
 	"github.com/hbtc-chain/gotron-sdk/pkg/address"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/api"
 	"github.com/hbtc-chain/gotron-sdk/pkg/proto/core"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	pb "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 )
 
 const TrxDecimals = 6
@@ -40,21 +41,25 @@ const (
 	trc20TransferTopic           = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 	trc20TransferAddrLen         = 32
 	trc20TransferMethodSignature = "a9059cbb"
-	defultGasLimit               = 1000000 //use 1 trx as limit.
+	defaultGasLimit              = 1000000 //use 1 trx as limit.
 )
 
 type ChainAdaptor struct {
 	fallback.ChainAdaptor
-	client *tronClient
+	clients *multiclient.MultiClient
 }
 
 func NewChainAdaptor(conf *config.Config) (chainadaptor.ChainAdaptor, error) {
-	client, err := newTronClient(conf)
+	clients, err := newTronClients(conf)
 	if err != nil {
 		return nil, err
 	}
+	clis := make([]multiclient.Client, len(clients))
+	for i, client := range clients {
+		clis[i] = client
+	}
 	return &ChainAdaptor{
-		client: client,
+		clients: multiclient.New(clis),
 	}, nil
 }
 
@@ -64,8 +69,12 @@ func NewLocalChainAdaptor(network config.NetWorkType) chainadaptor.ChainAdaptor 
 
 func newChainAdaptor(client *tronClient) chainadaptor.ChainAdaptor {
 	return &ChainAdaptor{
-		client: client,
+		clients: multiclient.New([]multiclient.Client{client}),
 	}
+}
+
+func (a *ChainAdaptor) getClient() *tronClient {
+	return a.clients.BestClient().(*tronClient)
 }
 
 // ConvertAddress convert BlueHelix chain's pubkey to a TRON address, keygen will generate compressed pubkey, tron only support uncompressed key like eth.
@@ -93,10 +102,10 @@ func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.Vali
 	log.Info("ValidAddress", "req", req)
 
 	ok := strings.HasPrefix(req.Address, "T")
-	grpcClient := a.client.grpcClient
+	grpcClient := a.getClient().grpcClient
 	//a TRC10 address
 	if !ok {
-		if !a.client.local {
+		if !a.getClient().local {
 			txi, err := grpcClient.GetAssetIssueByID(req.Address)
 			if err != nil {
 				log.Error("invalid TRC10 issuer", "err", err)
@@ -150,7 +159,7 @@ func (a *ChainAdaptor) ValidAddress(req *proto.ValidAddressRequest) (*proto.Vali
 	}
 
 	isTrc20 := false
-	if !a.client.local {
+	if !a.getClient().local {
 		abi, err := grpcClient.GetContractABI(req.Address)
 		if err != nil {
 			return &proto.ValidAddressReply{
@@ -178,7 +187,7 @@ func (a *ChainAdaptor) QueryBalance(req *proto.QueryBalanceRequest) (*proto.Quer
 	key := strings.Join([]string{req.Symbol, req.Address, strconv.FormatUint(req.BlockHeight, 10)}, ":")
 	balanceCache := cache.GetBalanceCache()
 
-	grpcClient := a.client.grpcClient
+	grpcClient := a.getClient().grpcClient
 	if req.BlockHeight != 0 {
 		if r, exist := balanceCache.Get(key); exist {
 			return &proto.QueryBalanceReply{
@@ -261,7 +270,7 @@ func (a *ChainAdaptor) QueryGasPrice(req *proto.QueryGasPriceRequest) (*proto.Qu
 
 func (a *ChainAdaptor) QueryAccountTransaction(req *proto.QueryTransactionRequest) (*proto.QueryAccountTransactionReply, error) {
 	log.Info("QueryTransaction", "req", req)
-	grpcClient := a.client.grpcClient
+	grpcClient := a.getClient().grpcClient
 
 	tx, err := grpcClient.GetTransactionByID(req.TxHash)
 	if err != nil {
@@ -413,7 +422,7 @@ func (a *ChainAdaptor) QueryAccountTransactionFromSignedData(req *proto.QueryTra
 
 func (a *ChainAdaptor) CreateAccountTransaction(req *proto.CreateAccountTransactionRequest) (*proto.CreateAccountTransactionReply, error) {
 	log.Info("CreateTransaction", "req", req)
-	grpcClient := a.client.grpcClient
+	grpcClient := a.getClient().grpcClient
 	amount, ok := big.NewInt(0).SetString(req.Amount, 10)
 	if !ok {
 		return &proto.CreateAccountTransactionReply{
@@ -606,7 +615,7 @@ func (a *ChainAdaptor) BroadcastTransaction(req *proto.BroadcastTransactionReque
 	rawData, err := pb.Marshal(tx.GetRawData())
 	hash := getHash(rawData)
 
-	_, err = a.client.grpcClient.Broadcast(&tx)
+	_, err = a.getClient().grpcClient.Broadcast(&tx)
 	if err != nil {
 		log.Error("broadcast tx failed", "hash", hex.EncodeToString(hash), "err", err)
 		return &proto.BroadcastTransactionReply{
@@ -623,15 +632,11 @@ func (a *ChainAdaptor) BroadcastTransaction(req *proto.BroadcastTransactionReque
 }
 
 func (a *ChainAdaptor) GetLatestBlockHeight() (int64, error) {
-	res, err := a.client.grpcClient.GetNowBlock()
-	if err != nil {
-		return 0, err
-	}
-	return res.GetBlockHeader().GetRawData().GetNumber(), nil
+	return a.getClient().GetLatestBlockHeight()
 }
 
 func (a *ChainAdaptor) GetAccountTransactionByHeight(height int64, replyCh chan *proto.QueryAccountTransactionReply, errCh chan error) {
-	grpcClient := a.client.grpcClient
+	grpcClient := a.getClient().grpcClient
 	block, err := grpcClient.GetBlockByNum(height)
 	if err != nil {
 		errCh <- err
@@ -963,6 +968,11 @@ func queryTransactionLocal(txRaw *core.TransactionRaw, symbol string) (*proto.Qu
 		}, err
 	}
 
+	gasLimit := txRaw.FeeLimit
+	if gasLimit == 0 {
+		gasLimit = defaultGasLimit
+	}
+
 	return &proto.QueryAccountTransactionReply{
 		Code:            proto.ReturnCode_SUCCESS,
 		TxHash:          hash,
@@ -972,7 +982,7 @@ func queryTransactionLocal(txRaw *core.TransactionRaw, symbol string) (*proto.Qu
 		Memo:            "",
 		Nonce:           0,
 		GasPrice:        "1",
-		GasLimit:        big.NewInt(defultGasLimit).String(),
+		GasLimit:        big.NewInt(gasLimit).String(),
 		SignHash:        getHash(bz),
 		ContractAddress: depositList[0].contractAddr,
 	}, nil
